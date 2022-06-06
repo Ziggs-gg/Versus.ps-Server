@@ -12,83 +12,86 @@ router.get('/', async (req, res) => {
 		SET @selected1 := '${ptID}';
 		SET @selected2 := '${ptID[1]}';
 		
-		SELECT
-			team1, WRBlue.minutes, gameCount_Blue, winCount_Blue, winCount_Blue / gameCount_Blue, GameCount_Red, winCount_Red, winCount_Red / gameCount_Red
+SELECT
+	team1 AS ptID, SUBSTRING_INDEX(team1, '-', -1) AS teamABBR ,GROUP_CONCAT(WRBlue.minutes) AS yAxis, 
+	GROUP_CONCAT(gameCount_Blue) AS gameCount_Blue, GROUP_CONCAT(winCount_Blue) AS winCount_Blue, GROUP_CONCAT(ROUND((winCount_Blue / gameCount_Blue) * 100, 1)) AS WR_Blue, 
+	GROUP_CONCAT(gameCount_Red) AS gameCount_Red, GROUP_CONCAT(winCount_Red) AS winCount_Red, GROUP_CONCAT(ROUND((winCount_Red / gameCount_Red) * 100, 1)) AS WR_Red
+FROM
+	(SELECT
+		team1 , minutes, gameCount_Blue, winCount_Blue
+	FROM 
+		# totalBlue 
+		(SELECT
+			team1, 'end' AS minutes,COUNT(gameID) AS gameCount_Blue, COUNT(CASE WHEN team1 = winningTeam THEN 1 END) AS winCount_Blue
 		FROM
-			(SELECT
-				team1, minutes, gameCount_Blue, winCount_Blue
-			FROM 
-				# totalBlue 
-				(SELECT
-					team1, 'end' AS minutes,COUNT(gameID) AS gameCount_Blue, COUNT(CASE WHEN team1 = winningTeam THEN 1 END) AS winCount_Blue
-				FROM
-					games AS g
-				WHERE team1 = @selected1 OR
-					team1 = @selected2
-				GROUP BY team1) AS totalBlue
-				
-				UNION ALL
-				
-				# GL Blue Side
-				(SELECT
-					team1, minutes, 
-					COUNT(CASE WHEN totalGolds_blue - totalGolds_red > 0 THEN team1 END) AS GL_gameCount_Blue, 
-					COUNT(CASE WHEN totalGolds_blue - totalGolds_red > 0 AND team1 = winningTeam THEN 1 END) AS GL_winCount_Blue
-				FROM
-					games AS g
-				
-				INNER JOIN 
-					games_gold_difference AS gd
-					ON g.gameID = gd.gameID
-				
-				WHERE team1 = @selected1 OR
-					team1 = @selected2
-				GROUP BY team1, minutes
-				HAVING 
-					minutes = 15 OR 
-					minutes = 20 OR 
-					minutes = 25)
-			ORDER BY FIELD(team1, @selected1, @selected2), FIELD(minutes, 15, 20, 25, 'end')
-			) AS WRBlue
+			games AS g
+		WHERE team1 = @selected1 OR
+			team1 = @selected2
+		GROUP BY team1) AS totalBlue
 		
-		INNER JOIN # redSide
-			(SELECT 
-				team2, minutes, GameCount_Red, WinCount_Red
-			FROM # totalRed
-				(SELECT
-					team2, 'end' AS minutes, COUNT(gameID) AS GameCount_Red, COUNT(CASE WHEN team2 = winningTeam THEN 1 END) AS WinCount_Red
-				FROM
-					games AS g
-				WHERE team2 = @selected1 OR
-					team2 = @selected2
-				GROUP BY team2) AS totalRed
-				
-				UNION ALL
-				
-				# GL Red Side
-				(SELECT
-					team2, minutes, 
-					COUNT(CASE WHEN totalGolds_red - totalGolds_blue > 0 THEN team2 END) AS GL_gameCount_Red, 
-					COUNT(CASE WHEN totalGolds_red - totalGolds_blue > 0 AND team2 = winningTeam THEN 1 END) AS GL_winCount_Red
-				FROM
-					games AS g
-				
-				INNER JOIN 
-					games_gold_difference AS gd
-					ON g.gameID = gd.gameID
-				
-				WHERE team2 = @selected1 OR
-					team2 = @selected2
-				GROUP BY team2, minutes
-				HAVING 
-					minutes = 15 OR 
-					minutes = 20 OR 
-					minutes = 25)
-				
-			ORDER BY FIELD(team2, @selected1, @selected2), FIELD(minutes, 15, 20, 25, 'end')
-			) AS WRRed
-			ON team1 = team2 AND
-			WRBlue.minutes = WRRed.minutes;
+		UNION ALL
+		
+		# GL Blue Side
+		(SELECT
+			team1, minutes, 
+			COUNT(CASE WHEN totalGolds_blue - totalGolds_red > 0 THEN team1 END) AS GL_gameCount_Blue, 
+			COUNT(CASE WHEN totalGolds_blue - totalGolds_red > 0 AND team1 = winningTeam THEN 1 END) AS GL_winCount_Blue
+		FROM
+			games AS g
+		
+		INNER JOIN 
+			games_gold_difference AS gd
+			ON g.gameID = gd.gameID
+		
+		WHERE team1 = @selected1 OR
+			team1 = @selected2
+		GROUP BY team1, minutes
+		HAVING 
+			minutes = 15 OR 
+			minutes = 20 OR 
+			minutes = 25)
+	ORDER BY FIELD(team1, @selected1, @selected2), FIELD(minutes, 15, 20, 25, 'end')
+	) AS WRBlue
+
+INNER JOIN # redSide
+	(SELECT 
+		team2, minutes, GameCount_Red, WinCount_Red
+	FROM # totalRed
+		(SELECT
+			team2, 'end' AS minutes, COUNT(gameID) AS GameCount_Red, COUNT(CASE WHEN team2 = winningTeam THEN 1 END) AS WinCount_Red
+		FROM
+			games AS g
+		WHERE team2 = @selected1 OR
+			team2 = @selected2
+		GROUP BY team2) AS totalRed
+		
+		UNION ALL
+		
+		# GL Red Side
+		(SELECT
+			team2, minutes, 
+			COUNT(CASE WHEN totalGolds_red - totalGolds_blue > 0 THEN team2 END) AS GL_gameCount_Red, 
+			COUNT(CASE WHEN totalGolds_red - totalGolds_blue > 0 AND team2 = winningTeam THEN 1 END) AS GL_winCount_Red
+		FROM
+			games AS g
+		
+		INNER JOIN 
+			games_gold_difference AS gd
+			ON g.gameID = gd.gameID
+		
+		WHERE team2 = @selected1 OR
+			team2 = @selected2
+		GROUP BY team2, minutes
+		HAVING 
+			minutes = 15 OR 
+			minutes = 20 OR 
+			minutes = 25)
+		
+	ORDER BY FIELD(team2, @selected1, @selected2), FIELD(minutes, 15, 20, 25, 'end')
+	) AS WRRed
+	ON team1 = team2 AND
+	WRBlue.minutes = WRRed.minutes
+GROUP BY ptID;
 	`;
 
 	const GoldDifferbyGameTime =
