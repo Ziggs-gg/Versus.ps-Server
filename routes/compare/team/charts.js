@@ -344,17 +344,20 @@ GROUP BY ptID;
 		SET @selected1 := '${ptID}';
 		SET @selected2 := '${ptID[1]}';
 
-		SELECT SUBSTRING_INDEX(phID, '-', 4) AS ptID, role,
-		(AVG(gs.totalDamageToChampion) / gt.totalDamageToChampion) * 100 AS DMGPCT ,
-		(AVG(gs.totalDamageTaken) / gt.totalDamageTaken) * 100 AS DTPCT,
-		(AVG(gs.CS) / gt.CS) * 100 AS CS, 
-		(AVG(gs.golds) / gt.golds) * 100 AS golds, 
-		(AVG(gs.visionScore) / gt.visionScore) * 100 AS visionScore
-	FROM games_stats AS gs
+		SELECT 
+	SUBSTRING_INDEX(phID, '-', 4) AS ptID,SUBSTRING_INDEX(SUBSTRING_INDEX(phID, '-', 4), '-', -1) AS teamABBR, role,
+	(AVG(gs.totalDamageToChampion) / gt.totalDamageToChampion) * 100 AS DMGPCT ,
+	(AVG(gs.totalDamageTaken) / gt.totalDamageTaken) * 100 AS DTPCT,
+	(AVG(gs.CS) / gt.CS) * 100 AS CS, 
+	(AVG(gs.golds) / gt.golds) * 100 AS golds, 
+	(AVG(gs.visionScore) / gt.visionScore) * 100 AS visionScore
+FROM 
+	games_stats AS gs
 INNER JOIN 
-	(SELECT ptID, AVG(totalDamageToChampion) AS totalDamageToChampion, AVG(totalDamageTaken) AS totalDamageTaken, 
-			AVG(CS) AS CS, AVG(golds) AS golds, AVG(visionScore) AS visionScore 
-		FROM gs_teams
+	(SELECT 
+		ptID, AVG(totalDamageToChampion) AS totalDamageToChampion, AVG(totalDamageTaken) AS totalDamageTaken, 
+		AVG(CS) AS CS, AVG(golds) AS golds, AVG(visionScore) AS visionScore 
+	FROM gs_teams
 	GROUP BY ptID) AS gt
 	ON SUBSTRING_INDEX(phID, '-', 4) = gt.ptID
 WHERE FIND_IN_SET(ptID, @selected1) OR
