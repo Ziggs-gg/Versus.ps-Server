@@ -11,7 +11,7 @@ const compareTeamFilteringList = require('./compare/team/filteringList');
 const compareTeamSelectedBox = require('./compare/team/selectedBox');
 const compareTeamSelectedRoasterCarousel = require('./compare/team/selectedRoasterCarousel');
 const compareTeamCharts = require('./compare/team/charts');
-// const compareTeamChampionPool = require('./compare/team/championPool');
+const compareTeamChampionPool = require('./compare/team/championPool');
 
 
 router.use('/compare/player', comparePlayerFilteringList);
@@ -24,7 +24,7 @@ router.use('/compare/team', compareTeamFilteringList);
 router.use('/compare/team/SelectedTeamBox', compareTeamSelectedBox);
 router.use('/compare/team/SelectedTeamRoasterCarousel', compareTeamSelectedRoasterCarousel);
 router.use('/compare/team/Chart', compareTeamCharts);
-// app.use('/compare/team/ChampionPool', compareTeamChampionPool);
+router.use('/compare/team/ChampionPool', compareTeamChampionPool);
 
 
 module.exports = router;
