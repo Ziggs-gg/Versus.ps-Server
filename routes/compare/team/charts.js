@@ -345,7 +345,14 @@ GROUP BY ptID;
 		SET @selected2 := '${ptID[1]}';
 
 		SELECT 
-	SUBSTRING_INDEX(phID, '-', 4) AS ptID,SUBSTRING_INDEX(SUBSTRING_INDEX(phID, '-', 4), '-', -1) AS teamABBR, role,
+	SUBSTRING_INDEX(phID, '-', 4) AS ptID,SUBSTRING_INDEX(SUBSTRING_INDEX(phID, '-', 4), '-', -1) AS teamABBR, 
+    (CASE # role 한글화
+		WHEN role = 'TOP' THEN '탑'
+        WHEN role = 'JUNGLE' THEN '정글'
+        WHEN role = 'MID' THEN '미드'
+        WHEN role = 'ADC' THEN '원딜'
+        WHEN role = 'SUPPORT' THEN '서폿'
+	END) AS role,
 	(AVG(gs.totalDamageToChampion) / gt.totalDamageToChampion) * 100 AS DMGPCT ,
 	(AVG(gs.totalDamageTaken) / gt.totalDamageTaken) * 100 AS DTPCT,
 	(AVG(gs.CS) / gt.CS) * 100 AS CS, 
