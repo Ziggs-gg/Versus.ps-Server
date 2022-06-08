@@ -287,45 +287,45 @@ GROUP BY ptID;
 		SET @selected2 := '${ptID[1]}';
 
 		SELECT
-		FOtime.earningTeamID AS ptID, AVG_FKtime, AVG_FTtime, AVG_FHtime, AVG_FDtime
-	FROM # FOtime
+	FOtime.earningTeamID AS ptID, SUBSTRING_INDEX(FOtime.earningTeamID, '-', -1) AS teamABBR, AVG_FKsec, AVG_FTsec, AVG_FHsec, AVG_FDsec
+FROM # FOtime
+	(SELECT
+		earningTeamID, AVG(TIME_TO_SEC(FKtime)) / 60 AS AVG_FKsec, AVG(TIME_TO_SEC(FTtime)) / 60 AS AVG_FTsec, AVG(TIME_TO_SEC(FHtime)) / 60 AS AVG_FHsec
+	FROM # firstObject
 		(SELECT
-			earningTeamID, SEC_TO_TIME(ROUND(AVG(TIME_TO_SEC(FKtime)))) AS AVG_FKtime, SEC_TO_TIME(ROUND(AVG(TIME_TO_SEC(FTtime)))) AS AVG_FTtime, SEC_TO_TIME(ROUND(AVG(TIME_TO_SEC(FHtime)))) AS AVG_FHtime
-		FROM # firstObject
+			gameID, earningTeamID, MIN(FK) AS FKtime, MIN(FT) AS FTtime, MIN(FH) AS FHtime
+		FROM # firstObject1
 			(SELECT
-				gameID, earningTeamID, MIN(FK) AS FKtime, MIN(FT) AS FTtime, MIN(FH) AS FHtime
-			FROM # firstObject1
-				(SELECT
-					gameID, earningTeamID,
-					(CASE WHEN objectID = 10 THEN time END) AS FK, -- First Kill
-					(CASE WHEN objectID = 11 THEN time END) AS FT, -- First Tower
-					(CASE WHEN objectID = 08 THEN time END) AS FH -- First Herald
-				FROM
-					game_time_table
-				GROUP BY gameID, objectID
-				HAVING objectID REGEXP ('08|10|11')
-				) AS firstObject1
-			GROUP BY gameID, earningTeamID
-			) AS firstObject
-		GROUP BY earningTeamID
-		) AS FOtime
-	
-	LEFT JOIN # FDtime
-		(SELECT
-			earningTeamID, SEC_TO_TIME(ROUND(AVG(TIME_TO_SEC(FDtime)))) AS AVG_FDtime
-		FROM # firstDragon
-			(SELECT
-				gameID, earningTeamID, target, time AS FDtime
+				gameID, earningTeamID,
+				(CASE WHEN objectID = 10 THEN time END) AS FK, -- First Kill
+				(CASE WHEN objectID = 11 THEN time END) AS FT, -- First Tower
+				(CASE WHEN objectID = 08 THEN time END) AS FH -- First Herald
 			FROM
 				game_time_table
-			GROUP BY gameID, target LIKE '%Drake'
-			HAVING target LIKE '%Drake'
-			) AS firstDragon
-		GROUP BY earningTeamID
-		) AS FDtime
-		ON FOtime.earningTeamID = FDtime.earningTeamID
-	WHERE FOtime.earningTeamID = @selected1 OR
-		FOtime.earningTeamID = @selected2;
+			GROUP BY gameID, objectID
+			HAVING objectID REGEXP ('08|10|11')
+			) AS firstObject1
+		GROUP BY gameID, earningTeamID
+		) AS firstObject
+	GROUP BY earningTeamID
+	) AS FOtime
+
+LEFT JOIN # FDtime
+	(SELECT
+		earningTeamID, AVG(TIME_TO_SEC(FDtime)) / 60 AS AVG_FDsec
+	FROM # firstDragon
+		(SELECT
+			gameID, earningTeamID, target, time AS FDtime
+		FROM
+			game_time_table
+		GROUP BY gameID, target LIKE '%Drake'
+		HAVING target LIKE '%Drake'
+		) AS firstDragon
+	GROUP BY earningTeamID
+	) AS FDtime
+	ON FOtime.earningTeamID = FDtime.earningTeamID
+WHERE FOtime.earningTeamID = @selected1 OR
+	FOtime.earningTeamID = @selected2;
 	`;
 
 	const IndexHeatmapbyPosition =
