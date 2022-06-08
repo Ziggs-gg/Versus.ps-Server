@@ -100,36 +100,43 @@ GROUP BY ptID;
 		SET @selected2 := '${ptID[1]}';
 		
 		SELECT
-			ptID, minutes, (SUM(sum_GD) / SUM(count_GD)) AS AVG_GD, SUM(count_GD) AS gameCount
-		FROM # unionGD
-			(# AVG_blueGD
-			SELECT 
-				team1 AS ptID, minutes, SUM(totalGolds_blue - totalGolds_red) AS sum_GD, COUNT(totalGolds_blue - totalGolds_red) AS count_GD
-			FROM 
-				(SELECT	gameID, ROUND(minutes) AS minutes, totalGolds_blue, totalGolds_red
-				FROM	games_gold_difference) AS gd
-			INNER JOIN
-				(SELECT gameID, team1 FROM games) AS g
-				ON gd.gameID = g.gameID
-			GROUP BY team1, minutes
-			
-			UNION ALL
-			
-			# AVG_redGD
-			SELECT 
-				team2, minutes, SUM(totalGolds_red - totalGolds_blue) AS sum_GD, COUNT(totalGolds_red - totalGolds_blue) AS count_GD
-			FROM 
-				(SELECT	gameID, ROUND(minutes) AS minutes, totalGolds_blue, totalGolds_red
-				FROM	games_gold_difference) AS gd
-			INNER JOIN
-				(SELECT gameID, team2 FROM games) AS g
-				ON gd.gameID = g.gameID
-			GROUP BY team2, minutes
-			) AS unionGD
-		GROUP BY ptID, minutes 
-		HAVING FIND_IN_SET(ptID, @selected1) OR
-			FIND_IN_SET(ptID, @selected2)
-		ORDER BY FIELD(ptID, @selected1, @selected2), minutes;
+	ptID, GROUP_CONCAT(minutes) AS minutes, GROUP_CONCAT(AVG_GD) AS AVG_GD, GROUP_CONCAT(gameCount) AS gameCount
+FROM # timeSeries 
+	(SELECT
+		ptID, minutes, ROUND(SUM(sum_GD) / SUM(count_GD), 2) AS AVG_GD, SUM(count_GD) AS gameCount
+	FROM # unionGD
+		(# AVG_blueGD
+		SELECT 
+			team1 AS ptID, minutes, SUM(totalGolds_blue - totalGolds_red) AS sum_GD, COUNT(totalGolds_blue - totalGolds_red) AS count_GD
+		FROM 
+			(SELECT	gameID, ROUND(minutes) AS minutes, totalGolds_blue, totalGolds_red
+			FROM	games_gold_difference) AS gd
+		INNER JOIN
+			(SELECT gameID, team1 FROM games) AS g
+			ON gd.gameID = g.gameID
+		GROUP BY team1, minutes
+		
+		UNION ALL
+		
+		# AVG_redGD
+		SELECT 
+			team2, minutes, SUM(totalGolds_red - totalGolds_blue) AS sum_GD, COUNT(totalGolds_red - totalGolds_blue) AS count_GD
+		FROM 
+			(SELECT	gameID, ROUND(minutes) AS minutes, totalGolds_blue, totalGolds_red
+			FROM	games_gold_difference) AS gd
+		INNER JOIN
+			(SELECT gameID, team2 FROM games) AS g
+			ON gd.gameID = g.gameID
+		GROUP BY team2, minutes
+		) AS unionGD
+	
+	WHERE
+		FIND_IN_SET(ptID, @selected1) OR
+		FIND_IN_SET(ptID, @selected2) 
+	GROUP BY ptID, minutes
+	ORDER BY FIELD(ptID, @selected1, @selected2), minutes
+	) AS timeSeries
+GROUP BY ptID;
 	`;
 
 	const TeamStatsbyGames =
