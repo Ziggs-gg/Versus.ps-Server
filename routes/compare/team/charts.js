@@ -100,7 +100,7 @@ GROUP BY ptID;
 		SET @selected2 := '${ptID[1]}';
 		
 		SELECT
-	ptID, GROUP_CONCAT(minutes) AS minutes, GROUP_CONCAT(AVG_GD) AS AVG_GD, GROUP_CONCAT(gameCount) AS gameCount
+	ptID, SUBSTRING_INDEX(ptID, '-', -1) AS teamABBR, GROUP_CONCAT(minutes) AS minutes, GROUP_CONCAT(AVG_GD) AS AVG_GD, GROUP_CONCAT(gameCount) AS gameCount
 FROM # timeSeries 
 	(SELECT
 		ptID, minutes, ROUND(SUM(sum_GD) / SUM(count_GD), 2) AS AVG_GD, SUM(count_GD) AS gameCount
