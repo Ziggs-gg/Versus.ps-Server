@@ -7,9 +7,102 @@ var con = db.getConnection;
 router.get('/', async (req, res) => {
 	let ptID = req.query.ptID;
 
-	const WinRatebySide =
-		`
+	let WinRatebySide
+	let FirstObjectRateAndWR
+	let FirstObjectTime
+
+	if (typeof (ptID) == 'string') {
+		WinRatebySide =
+			`
 		SET @selected1 := '${ptID}';
+		SET @selected2 := '';
+SELECT
+	team1 AS ptID, SUBSTRING_INDEX(team1, '-', -1) AS teamABBR ,GROUP_CONCAT(WRBlue.minutes) AS yAxis, 
+	GROUP_CONCAT(gameCount_Blue) AS gameCount_Blue, GROUP_CONCAT(winCount_Blue) AS winCount_Blue, GROUP_CONCAT(ROUND((winCount_Blue / gameCount_Blue) * 100, 1)) AS WR_Blue, 
+	GROUP_CONCAT(gameCount_Red) AS gameCount_Red, GROUP_CONCAT(winCount_Red) AS winCount_Red, GROUP_CONCAT(ROUND((winCount_Red / gameCount_Red) * 100, 1)) AS WR_Red
+FROM
+	(SELECT
+		team1 , minutes, gameCount_Blue, winCount_Blue
+	FROM 
+		# totalBlue 
+		(SELECT
+			team1, 'end' AS minutes,COUNT(gameID) AS gameCount_Blue, COUNT(CASE WHEN team1 = winningTeam THEN 1 END) AS winCount_Blue
+		FROM
+			games AS g
+		WHERE team1 = @selected1 OR
+			team1 = @selected2
+		GROUP BY team1) AS totalBlue
+		
+		UNION ALL
+		
+		# GL Blue Side
+		(SELECT
+			team1, minutes, 
+			COUNT(CASE WHEN totalGolds_blue - totalGolds_red > 0 THEN team1 END) AS GL_gameCount_Blue, 
+			COUNT(CASE WHEN totalGolds_blue - totalGolds_red > 0 AND team1 = winningTeam THEN 1 END) AS GL_winCount_Blue
+		FROM
+			games AS g
+		
+		INNER JOIN 
+			games_gold_difference AS gd
+			ON g.gameID = gd.gameID
+		
+		WHERE team1 = @selected1 OR
+			team1 = @selected2
+		GROUP BY team1, minutes
+		HAVING 
+			minutes = 15 OR 
+			minutes = 20 OR 
+			minutes = 25)
+	ORDER BY FIELD(team1, @selected1, @selected2), FIELD(minutes, 15, 20, 25, 'end')
+	) AS WRBlue
+
+INNER JOIN # redSide
+	(SELECT 
+		team2, minutes, GameCount_Red, WinCount_Red
+	FROM # totalRed
+		(SELECT
+			team2, 'end' AS minutes, COUNT(gameID) AS GameCount_Red, COUNT(CASE WHEN team2 = winningTeam THEN 1 END) AS WinCount_Red
+		FROM
+			games AS g
+		WHERE team2 = @selected1 OR
+			team2 = @selected2
+		GROUP BY team2) AS totalRed
+		
+		UNION ALL
+		
+		# GL Red Side
+		(SELECT
+			team2, minutes, 
+			COUNT(CASE WHEN totalGolds_red - totalGolds_blue > 0 THEN team2 END) AS GL_gameCount_Red, 
+			COUNT(CASE WHEN totalGolds_red - totalGolds_blue > 0 AND team2 = winningTeam THEN 1 END) AS GL_winCount_Red
+		FROM
+			games AS g
+		
+		INNER JOIN 
+			games_gold_difference AS gd
+			ON g.gameID = gd.gameID
+		
+		WHERE team2 = @selected1 OR
+			team2 = @selected2
+		GROUP BY team2, minutes
+		HAVING 
+			minutes = 15 OR 
+			minutes = 20 OR 
+			minutes = 25)
+		
+	ORDER BY FIELD(team2, @selected1, @selected2), FIELD(minutes, 15, 20, 25, 'end')
+	) AS WRRed
+	ON team1 = team2 AND
+	WRBlue.minutes = WRRed.minutes
+GROUP BY ptID;
+	`;
+	}
+
+	else {
+		WinRatebySide =
+			`
+		SET @selected1 := '${ptID[0]}';
 		SET @selected2 := '${ptID[1]}';
 		
 SELECT
@@ -93,6 +186,7 @@ INNER JOIN # redSide
 	WRBlue.minutes = WRRed.minutes
 GROUP BY ptID;
 	`;
+	}
 
 	const GoldDifferbyGameTime =
 		`
@@ -158,117 +252,125 @@ GROUP BY ptID;
 		GROUP BY ptID
 		ORDER BY FIELD(ptID, @selected1, @selected2);
 	`;
-
-	const FirstObjectRateAndWR =
-		`
+	if (typeof (ptID) == 'string') {
+		FirstObjectRateAndWR =
+			`
 		SET @selected1 := '${ptID}';
-		SET @selected2 := '${ptID[1]}';
+		SET @selected2 := '';
 
 		SELECT
-		ptID, COUNT(ptID) AS gameCount, 
-		# FO count
-		SUM(FK) AS countFK, SUM(FT) AS countFT, SUM(FH) AS countFH, SUM(FD) AS countFD, SUM(FN) AS countFN,
-		# FO winCount
-		SUM(FKwin) AS countFKwin, SUM(FTwin) AS countFTwin, SUM(FHwin) AS countFHwin, SUM(FDwin) AS countFDwin, SUM(FNwin) AS countFNwin,
-		# FO %
-		SUM(FK) / COUNT(ptID) AS FKpct, SUM(FT) / COUNT(ptID) AS FTpct, SUM(FH) / COUNT(ptID) AS FHpct, SUM(FD) / COUNT(ptID) AS FDpct, SUM(FN) / COUNT(ptID) FNpct,
-		# FO_WR
-		SUM(FKwin) / SUM(FK) AS FKwinPCT, SUM(FTwin) / SUM(FT) AS FTwinPCT, SUM(FHwin) / SUM(FH) AS FHwinPCT, SUM(FDwin) / SUM(FD) AS FDwinPCT, SUM(FNwin) / SUM(FN) AS FNwinPCT
-	FROM # foUnion
-		(# Blue Side Team First Object Query
-		(SELECT 
-			g.gameID, team1 AS ptID, winningTeam, FK, FT, FH, FN, FD,
-			FK = winGame AS FKwin,
-			FT = winGame AS FTwin,
-			FH = winGame AS FHwin,
-			FN = winGame AS FNwin,
-			FD = winGame AS FDwin
-		FROM # g
+	ptID, SUBSTRING_INDEX(ptID, '-', -1) AS teamABBR, COUNT(ptID) AS gameCount, 
+	# FO count
+	SUM(FK) AS countFK, SUM(FT) AS countFT, SUM(FH) AS countFH, SUM(FD) AS countFD, SUM(FN) AS countFN,
+	# FO winCount
+	SUM(FKwin) AS countFKwin, SUM(FTwin) AS countFTwin, SUM(FHwin) AS countFHwin, SUM(FDwin) AS countFDwin, SUM(FNwin) AS countFNwin,
+	# FO %
+	ROUND((SUM(FK) / COUNT(ptID)) * 100, 2) AS FKpct, 
+    ROUND((SUM(FT) / COUNT(ptID)) * 100, 2) AS FTpct, 
+    ROUND((SUM(FH) / COUNT(ptID)) * 100, 2) AS FHpct, 
+    ROUND((SUM(FD) / COUNT(ptID)) * 100, 2) AS FDpct, 
+    ROUND((SUM(FN) / COUNT(ptID)) * 100, 2) AS FNpct,
+	# FO_WR
+	ROUND((SUM(FKwin) / SUM(FK)) * 100, 2) AS FKwinPCT, 
+    ROUND((SUM(FTwin) / SUM(FT)) * 100, 2) AS FTwinPCT, 
+    ROUND((SUM(FHwin) / SUM(FH)) * 100, 2) AS FHwinPCT, 
+    ROUND((SUM(FDwin) / SUM(FD)) * 100, 2) AS FDwinPCT, 
+    ROUND((SUM(FNwin) / SUM(FN)) * 100, 2) AS FNwinPCT
+FROM # foUnion
+	(# Blue Side Team First Object Query
+	(SELECT 
+		g.gameID, team1 AS ptID, winningTeam, FK, FT, FH, FN, FD,
+		FK = winGame AS FKwin,
+		FT = winGame AS FTwin,
+		FH = winGame AS FHwin,
+		FN = winGame AS FNwin,
+		FD = winGame AS FDwin
+	FROM # g
+		(SELECT
+			gameID, team1, winningTeam, winningTeam = team1 AS winGame
+		FROM
+			games
+		GROUP BY gameID
+		) AS g
+	LEFT JOIN # firstObject2
+		(# Earend First Object Query
+		SELECT
+			gameID, earningTeamID, MIN(FK) AS FK, MIN(FT) AS FT, MIN(FH) AS FH, MIN(FN) AS FN
+		FROM # firstObject1
 			(SELECT
-				gameID, team1, winningTeam, winningTeam = team1 AS winGame
-			FROM
-				games
-			GROUP BY gameID
-			) AS g
-		LEFT JOIN # firstObject2
-			(# Earend First Object Query
-			SELECT
-				gameID, earningTeamID, MIN(FK) AS FK, MIN(FT) AS FT, MIN(FH) AS FH, MIN(FN) AS FN
-			FROM # firstObject1
-				(SELECT
-					gameID, earningTeamID,
-					(CASE WHEN objectID = 10 THEN 1 END) AS FK, -- First Kill
-					(CASE WHEN objectID = 11 THEN 1 END) AS FT, -- First Tower
-					(CASE WHEN objectID = 08 THEN 1 END) AS FH, -- First Herald
-					(CASE WHEN objectID = 09 THEN 1 END) AS FN -- First Nashor
-				FROM
-					game_time_table
-				GROUP BY gameID, objectID
-				HAVING objectID REGEXP ('08|09|10|11')
-				) AS firstObject1
-			GROUP BY gameID, earningTeamID
-			) AS firstObject2
-			ON g.gameID = firstObject2.gameID AND
-			team1 = firstObject2.earningTeamID
-			
-		LEFT JOIN # firstDragon
-			(SELECT
-				gameID, earningTeamID, target, 1 AS FD
+				gameID, earningTeamID,
+				(CASE WHEN objectID = 10 THEN 1 END) AS FK, -- First Kill
+				(CASE WHEN objectID = 11 THEN 1 END) AS FT, -- First Tower
+				(CASE WHEN objectID = 08 THEN 1 END) AS FH, -- First Herald
+				(CASE WHEN objectID = 09 THEN 1 END) AS FN -- First Nashor
 			FROM
 				game_time_table
-			GROUP BY gameID, target LIKE '%Drake'
-			HAVING target LIKE '%Drake'
-			ORDER BY gameID
-			) AS firstDragon
-			ON g.gameID = firstDragon.gameID AND
-			team1 = firstDragon.earningTeamID
-		)
+			GROUP BY gameID, objectID
+			HAVING objectID REGEXP ('08|09|10|11')
+			) AS firstObject1
+		GROUP BY gameID, earningTeamID
+		) AS firstObject2
+		ON g.gameID = firstObject2.gameID AND
+		team1 = firstObject2.earningTeamID
 		
-		UNION ALL
-		
-		# Red Side Team First Object Query
-		(SELECT 
-			g.gameID, team2, winningTeam, FK, FT, FH, FN, FD,
-			FK = winGame AS FKwin,
-			FT = winGame AS FTwin,
-			FH = winGame AS FHwin,
-			FN = winGame AS FNwin,
-			FD = winGame AS FDwin
-		FROM # g
+	LEFT JOIN # firstDragon
+		(SELECT
+			gameID, earningTeamID, target, 1 AS FD
+		FROM
+			game_time_table
+		GROUP BY gameID, target LIKE '%Drake'
+		HAVING target LIKE '%Drake'
+		ORDER BY gameID
+		) AS firstDragon
+		ON g.gameID = firstDragon.gameID AND
+		team1 = firstDragon.earningTeamID
+	)
+	
+	UNION ALL
+	
+	# Red Side Team First Object Query
+	(SELECT 
+		g.gameID, team2, winningTeam, FK, FT, FH, FN, FD,
+		FK = winGame AS FKwin,
+		FT = winGame AS FTwin,
+		FH = winGame AS FHwin,
+		FN = winGame AS FNwin,
+		FD = winGame AS FDwin
+	FROM # g
+		(SELECT
+			gameID, team2, winningTeam, winningTeam = team2 AS winGame
+		FROM
+			games
+		GROUP BY gameID
+		) AS g
+	LEFT JOIN # firstObject2
+		(# Earend First Object Query
+		SELECT
+			gameID, earningTeamID, MIN(FK) AS FK, MIN(FT) AS FT, MIN(FH) AS FH, MIN(FN) AS FN
+		FROM # firstObject1
 			(SELECT
-				gameID, team2, winningTeam, winningTeam = team2 AS winGame
-			FROM
-				games
-			GROUP BY gameID
-			) AS g
-		LEFT JOIN # firstObject2
-			(# Earend First Object Query
-			SELECT
-				gameID, earningTeamID, MIN(FK) AS FK, MIN(FT) AS FT, MIN(FH) AS FH, MIN(FN) AS FN
-			FROM # firstObject1
-				(SELECT
-					gameID, earningTeamID,
-					(CASE WHEN objectID = 10 THEN 1 END) AS FK, -- First Kill
-					(CASE WHEN objectID = 11 THEN 1 END) AS FT, -- First Tower
-					(CASE WHEN objectID = 08 THEN 1 END) AS FH, -- First Herald
-					(CASE WHEN objectID = 09 THEN 1 END) AS FN -- First Nashor
-				FROM
-					game_time_table
-				GROUP BY gameID, objectID
-				HAVING objectID REGEXP ('08|09|10|11')
-				) AS firstObject1
-			GROUP BY gameID, earningTeamID
-			) AS firstObject2
-			ON g.gameID = firstObject2.gameID AND
-			team2 = firstObject2.earningTeamID
-			
-		LEFT JOIN # firstDragon
-			(SELECT
-				gameID, earningTeamID, target, 1 AS FD
+				gameID, earningTeamID,
+				(CASE WHEN objectID = 10 THEN 1 END) AS FK, -- First Kill
+				(CASE WHEN objectID = 11 THEN 1 END) AS FT, -- First Tower
+				(CASE WHEN objectID = 08 THEN 1 END) AS FH, -- First Herald
+				(CASE WHEN objectID = 09 THEN 1 END) AS FN -- First Nashor
 			FROM
 				game_time_table
-			GROUP BY gameID, target LIKE '%Drake'
-			HAVING target LIKE '%Drake'
+			GROUP BY gameID, objectID
+			HAVING objectID REGEXP ('08|09|10|11')
+			) AS firstObject1
+		GROUP BY gameID, earningTeamID
+		) AS firstObject2
+		ON g.gameID = firstObject2.gameID AND
+		team2 = firstObject2.earningTeamID
+		
+	LEFT JOIN # firstDragon
+		(SELECT
+			gameID, earningTeamID, target, 1 AS FD
+		FROM
+			game_time_table
+		GROUP BY gameID, target LIKE '%Drake'
+		HAVING target LIKE '%Drake'
 			ORDER BY gameID
 			) AS firstDragon
 			ON g.gameID = firstDragon.gameID AND
@@ -276,15 +378,198 @@ GROUP BY ptID;
 		)
 		ORDER BY gameID
 		) AS foUnion
-	GROUP BY ptID
-	HAVING ptID = @selected1 OR
-		ptID = @selected2
-	ORDER BY FIELD(ptID, @selected1, @selcted2);
+WHERE  ptID = @selected1 OR
+	ptID = @selected2
+GROUP BY ptID
+ORDER BY FIELD(ptID, @selected1, @selected2);
+	`;
+	}
+	else {
+		FirstObjectRateAndWR =
+			`
+		SET @selected1 := '${ptID[0]}';
+		SET @selected2 := '${ptID[1]}';
+
+		SELECT
+	ptID, SUBSTRING_INDEX(ptID, '-', -1) AS teamABBR, COUNT(ptID) AS gameCount, 
+	# FO count
+	SUM(FK) AS countFK, SUM(FT) AS countFT, SUM(FH) AS countFH, SUM(FD) AS countFD, SUM(FN) AS countFN,
+	# FO winCount
+	SUM(FKwin) AS countFKwin, SUM(FTwin) AS countFTwin, SUM(FHwin) AS countFHwin, SUM(FDwin) AS countFDwin, SUM(FNwin) AS countFNwin,
+	# FO %
+	ROUND((SUM(FK) / COUNT(ptID)) * 100, 2) AS FKpct, 
+    ROUND((SUM(FT) / COUNT(ptID)) * 100, 2) AS FTpct, 
+    ROUND((SUM(FH) / COUNT(ptID)) * 100, 2) AS FHpct, 
+    ROUND((SUM(FD) / COUNT(ptID)) * 100, 2) AS FDpct, 
+    ROUND((SUM(FN) / COUNT(ptID)) * 100, 2) AS FNpct,
+	# FO_WR
+	ROUND((SUM(FKwin) / SUM(FK)) * 100, 2) AS FKwinPCT, 
+    ROUND((SUM(FTwin) / SUM(FT)) * 100, 2) AS FTwinPCT, 
+    ROUND((SUM(FHwin) / SUM(FH)) * 100, 2) AS FHwinPCT, 
+    ROUND((SUM(FDwin) / SUM(FD)) * 100, 2) AS FDwinPCT, 
+    ROUND((SUM(FNwin) / SUM(FN)) * 100, 2) AS FNwinPCT
+FROM # foUnion
+	(# Blue Side Team First Object Query
+	(SELECT 
+		g.gameID, team1 AS ptID, winningTeam, FK, FT, FH, FN, FD,
+		FK = winGame AS FKwin,
+		FT = winGame AS FTwin,
+		FH = winGame AS FHwin,
+		FN = winGame AS FNwin,
+		FD = winGame AS FDwin
+	FROM # g
+		(SELECT
+			gameID, team1, winningTeam, winningTeam = team1 AS winGame
+		FROM
+			games
+		GROUP BY gameID
+		) AS g
+	LEFT JOIN # firstObject2
+		(# Earend First Object Query
+		SELECT
+			gameID, earningTeamID, MIN(FK) AS FK, MIN(FT) AS FT, MIN(FH) AS FH, MIN(FN) AS FN
+		FROM # firstObject1
+			(SELECT
+				gameID, earningTeamID,
+				(CASE WHEN objectID = 10 THEN 1 END) AS FK, -- First Kill
+				(CASE WHEN objectID = 11 THEN 1 END) AS FT, -- First Tower
+				(CASE WHEN objectID = 08 THEN 1 END) AS FH, -- First Herald
+				(CASE WHEN objectID = 09 THEN 1 END) AS FN -- First Nashor
+			FROM
+				game_time_table
+			GROUP BY gameID, objectID
+			HAVING objectID REGEXP ('08|09|10|11')
+			) AS firstObject1
+		GROUP BY gameID, earningTeamID
+		) AS firstObject2
+		ON g.gameID = firstObject2.gameID AND
+		team1 = firstObject2.earningTeamID
+		
+	LEFT JOIN # firstDragon
+		(SELECT
+			gameID, earningTeamID, target, 1 AS FD
+		FROM
+			game_time_table
+		GROUP BY gameID, target LIKE '%Drake'
+		HAVING target LIKE '%Drake'
+		ORDER BY gameID
+		) AS firstDragon
+		ON g.gameID = firstDragon.gameID AND
+		team1 = firstDragon.earningTeamID
+	)
+	
+	UNION ALL
+	
+	# Red Side Team First Object Query
+	(SELECT 
+		g.gameID, team2, winningTeam, FK, FT, FH, FN, FD,
+		FK = winGame AS FKwin,
+		FT = winGame AS FTwin,
+		FH = winGame AS FHwin,
+		FN = winGame AS FNwin,
+		FD = winGame AS FDwin
+	FROM # g
+		(SELECT
+			gameID, team2, winningTeam, winningTeam = team2 AS winGame
+		FROM
+			games
+		GROUP BY gameID
+		) AS g
+	LEFT JOIN # firstObject2
+		(# Earend First Object Query
+		SELECT
+			gameID, earningTeamID, MIN(FK) AS FK, MIN(FT) AS FT, MIN(FH) AS FH, MIN(FN) AS FN
+		FROM # firstObject1
+			(SELECT
+				gameID, earningTeamID,
+				(CASE WHEN objectID = 10 THEN 1 END) AS FK, -- First Kill
+				(CASE WHEN objectID = 11 THEN 1 END) AS FT, -- First Tower
+				(CASE WHEN objectID = 08 THEN 1 END) AS FH, -- First Herald
+				(CASE WHEN objectID = 09 THEN 1 END) AS FN -- First Nashor
+			FROM
+				game_time_table
+			GROUP BY gameID, objectID
+			HAVING objectID REGEXP ('08|09|10|11')
+			) AS firstObject1
+		GROUP BY gameID, earningTeamID
+		) AS firstObject2
+		ON g.gameID = firstObject2.gameID AND
+		team2 = firstObject2.earningTeamID
+		
+	LEFT JOIN # firstDragon
+		(SELECT
+			gameID, earningTeamID, target, 1 AS FD
+		FROM
+			game_time_table
+		GROUP BY gameID, target LIKE '%Drake'
+		HAVING target LIKE '%Drake'
+			ORDER BY gameID
+			) AS firstDragon
+			ON g.gameID = firstDragon.gameID AND
+			team2 = firstDragon.earningTeamID
+		)
+		ORDER BY gameID
+		) AS foUnion
+WHERE  ptID = @selected1 OR
+	ptID = @selected2
+GROUP BY ptID
+ORDER BY FIELD(ptID, @selected1, @selected2);
 	`;
 
-	const FirstObjectTime =
-		`
+	}
+
+	if (typeof (ptID) == 'string') {
+		FirstObjectTime =
+			`
 		SET @selected1 := '${ptID}';
+		SET @selected2 := '';
+
+		SELECT
+	FOtime.earningTeamID AS ptID, SUBSTRING_INDEX(FOtime.earningTeamID, '-', -1) AS teamABBR, AVG_FKsec, AVG_FTsec, AVG_FHsec, AVG_FDsec
+FROM # FOtime
+	(SELECT
+		earningTeamID, AVG(TIME_TO_SEC(FKtime)) / 60 AS AVG_FKsec, AVG(TIME_TO_SEC(FTtime)) / 60 AS AVG_FTsec, AVG(TIME_TO_SEC(FHtime)) / 60 AS AVG_FHsec
+	FROM # firstObject
+		(SELECT
+			gameID, earningTeamID, MIN(FK) AS FKtime, MIN(FT) AS FTtime, MIN(FH) AS FHtime
+		FROM # firstObject1
+			(SELECT
+				gameID, earningTeamID,
+				(CASE WHEN objectID = 10 THEN time END) AS FK, -- First Kill
+				(CASE WHEN objectID = 11 THEN time END) AS FT, -- First Tower
+				(CASE WHEN objectID = 08 THEN time END) AS FH -- First Herald
+			FROM
+				game_time_table
+			GROUP BY gameID, objectID
+			HAVING objectID REGEXP ('08|10|11')
+			) AS firstObject1
+		GROUP BY gameID, earningTeamID
+		) AS firstObject
+	GROUP BY earningTeamID
+	) AS FOtime
+
+LEFT JOIN # FDtime
+	(SELECT
+		earningTeamID, AVG(TIME_TO_SEC(FDtime)) / 60 AS AVG_FDsec
+	FROM # firstDragon
+		(SELECT
+			gameID, earningTeamID, target, time AS FDtime
+		FROM
+			game_time_table
+		GROUP BY gameID, target LIKE '%Drake'
+		HAVING target LIKE '%Drake'
+		) AS firstDragon
+	GROUP BY earningTeamID
+	) AS FDtime
+	ON FOtime.earningTeamID = FDtime.earningTeamID
+WHERE FOtime.earningTeamID = @selected1 OR
+	FOtime.earningTeamID = @selected2;
+	`;
+	}
+	else {
+		FirstObjectTime =
+			`
+		SET @selected1 := '${ptID[0]}';
 		SET @selected2 := '${ptID[1]}';
 
 		SELECT
@@ -328,6 +613,7 @@ LEFT JOIN # FDtime
 WHERE FOtime.earningTeamID = @selected1 OR
 	FOtime.earningTeamID = @selected2;
 	`;
+	}
 
 	const IndexHeatmapbyPosition =
 		`
@@ -392,7 +678,7 @@ ORDER BY FIELD(ptID, @selected1, @selected2),
 			var FirstObjectTime_result = results[14]
 			var IndexHeatmapbyPosition_result = results[17]
 			var TeamPercentDatabyPosition_result = results[20]
-						
+
 			if
 				(err) console.log(err);
 			else
@@ -403,7 +689,7 @@ ORDER BY FIELD(ptID, @selected1, @selected2),
 					FirstObjectRateAndWR_result: FirstObjectRateAndWR_result,
 					FirstObjectTime: FirstObjectTime_result,
 					IndexHeatmapbyPosition: IndexHeatmapbyPosition_result,
-					TeamPercentDatabyPosition: TeamPercentDatabyPosition_result					
+					TeamPercentDatabyPosition: TeamPercentDatabyPosition_result
 				});
 		});
 })
