@@ -4,16 +4,20 @@ const router = express.Router();
 const db = require('../../../config/db.js');
 var con = db.getConnection;
 
-router.get('/', async (req, res) => {
-    let ptID = req.query.ptID;
+// 		SET @selected1 := '${ptID}';
+//         SET @selected2 := '${ptID[1]}';
 
-    const ChampionPool =
-        `
+router.get('/', async (req, res) => {
+	let ptID = req.query.ptID;
+
+	const ChampionPool =
+		`
 		SET @selected1 := '${ptID}';
         SET @selected2 := '${ptID[1]}';
-
+		
+		# 0612_1role1row_ver
 SELECT 
-	ptID, teamABBR, role, championName, DDname, gameCount, winRate, AVG_KDA, AVG_DPM, AVG_GPM, AVG_VSPM, rowNum
+	rowNumQuery.ptID, teamABBR, role, championName, DDname, gameCount, winRate, AVG_KDA, AVG_DPM, AVG_GPM, AVG_VSPM, rowNum, imgPath
 FROM # rowNumQuery
 	(SELECT
 		ptID, SUBSTRING_INDEX(ptID, '-', -1) AS teamABBR,
@@ -41,24 +45,36 @@ FROM # rowNumQuery
 	ORDER BY ptID, 
 		FIELD(role, 'TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT')
 	) AS rowNumQuery
+INNER JOIN teamIMGpath AS tip
+	ON rowNumQuery.ptID = tip.ptID
 WHERE 
 	rowNum <= 3 AND
-	FIND_IN_SET(ptID, @selected1) OR
+	FIND_IN_SET(rowNumQuery.ptID, @selected1) OR
 	rowNum <= 3 AND
-	FIND_IN_SET(ptID, @selected2)
-ORDER BY FIELD(ptID, @selected1, @selected2), FIELD(role, 'TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT'), rowNum;
+	FIND_IN_SET(rowNumQuery.ptID, @selected2)
+ORDER BY FIELD(rowNumQuery.ptID, @selected1, @selected2), FIELD(role, 'TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT'), rowNum;
 	`;
 
-    con.query(ChampionPool, ptID, function (err, results) {
-        let ChampionPool_result = results[2]
+	con.query(ChampionPool, ptID, function (err, results) {
+		let ChampionPool_result = results[2]
+		// let dataList = []
+		// let roleObj = JSON.parse(results[2][0].role)
+		// for (let obj of roleObj) {
+		// 	obj.rowNum
+		// }
+		// for (let data of results[2]) {
+		// 	dataList.push(JSON.parse(data.role).ADC.DDname)
+		// }
 
-        if
-            (err) console.log(err);
-        else
-            res.json({
-                ChampionPool: ChampionPool_result
-            });
-    });
+		if
+			(err) console.log(err);
+		else
+			// console.log(ChampionPool_result)
+
+		res.json({
+			ChampionPool: ChampionPool_result
+		});
+	});
 })
 
 
