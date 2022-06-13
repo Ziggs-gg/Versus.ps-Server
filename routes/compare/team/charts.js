@@ -245,7 +245,7 @@ GROUP BY ptID;
 		SET @selected1 := '${ptID}';
 		SET @selected2 := '${ptID[1]}';
 		
-		# 0613 ver
+		# 0613_2 ver
 SELECT
 	ptID, SUBSTRING_INDEX(ptID, '-', -1) AS teamABBR, GROUP_CONCAT(minutes ORDER BY minutes) AS minutes, GROUP_CONCAT(AVG_GD ORDER BY minutes) AS AVG_GD, GROUP_CONCAT(gameCount ORDER BY minutes) AS gameCount
 FROM # timeSeries 
@@ -283,7 +283,8 @@ FROM # timeSeries
 	GROUP BY ptID, minutes
 	ORDER BY FIELD(ptID, @selected1, @selected2), minutes
 	) AS timeSeries
-GROUP BY ptID;
+GROUP BY ptID
+ORDER BY FIELD(ptID, @selected1, @selected2);
 	`;
 
 	const TeamStatsbyGames =
