@@ -236,7 +236,8 @@ INNER JOIN # redSide
 	) AS WRRed
 	ON team1 = team2 AND
 	WRBlue.minutes = WRRed.minutes
-GROUP BY ptID;
+GROUP BY ptID
+ORDER BY FIELD(team2, @selected1, @selected2);
 	`;
 	}
 
@@ -587,12 +588,12 @@ ORDER BY FIELD(ptID, @selected1, @selected2);
 		SET @selected1 := '${ptID}';
 		SET @selected2 := '';
 
-		# 0613 ver
+		# 0613_2 ver
 SELECT 
-	pt.ptID,teamABBR,AVG_FKsec,AVG_FTsec,AVG_FHsec,AVG_FDsec
+	pt.ptID, SUBSTRING_INDEX(pt.ptID, '-', -1) AS teamABBR, AVG_FKsec, AVG_FTsec, AVG_FHsec, AVG_FDsec
 FROM # FOtime
 	(SELECT
-		FOtime.earningTeamID AS ptID, SUBSTRING_INDEX(FOtime.earningTeamID, '-', -1) AS teamABBR, AVG_FKsec, AVG_FTsec, AVG_FHsec, AVG_FDsec
+		FOtime.earningTeamID AS ptID, AVG_FKsec, AVG_FTsec, AVG_FHsec, AVG_FDsec
 	FROM # FOtime
 		(SELECT
 			earningTeamID, AVG(TIME_TO_SEC(FKtime)) / 60 AS AVG_FKsec, AVG(TIME_TO_SEC(FTtime)) / 60 AS AVG_FTsec, AVG(TIME_TO_SEC(FHtime)) / 60 AS AVG_FHsec
@@ -646,12 +647,12 @@ ORDER BY FIELD(pt.ptID, @selected1, @selected2);
 		SET @selected1 := '${ptID[0]}';
 		SET @selected2 := '${ptID[1]}';
 
-		# 0613 ver
+		# 0613_2 ver
 SELECT 
-	pt.ptID,teamABBR,AVG_FKsec,AVG_FTsec,AVG_FHsec,AVG_FDsec
+	pt.ptID, SUBSTRING_INDEX(pt.ptID, '-', -1) AS teamABBR, AVG_FKsec, AVG_FTsec, AVG_FHsec, AVG_FDsec
 FROM # FOtime
 	(SELECT
-		FOtime.earningTeamID AS ptID, SUBSTRING_INDEX(FOtime.earningTeamID, '-', -1) AS teamABBR, AVG_FKsec, AVG_FTsec, AVG_FHsec, AVG_FDsec
+		FOtime.earningTeamID AS ptID, AVG_FKsec, AVG_FTsec, AVG_FHsec, AVG_FDsec
 	FROM # FOtime
 		(SELECT
 			earningTeamID, AVG(TIME_TO_SEC(FKtime)) / 60 AS AVG_FKsec, AVG(TIME_TO_SEC(FTtime)) / 60 AS AVG_FTsec, AVG(TIME_TO_SEC(FHtime)) / 60 AS AVG_FHsec
