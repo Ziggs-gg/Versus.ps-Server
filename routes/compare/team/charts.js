@@ -195,8 +195,9 @@ router.get('/', async (req, res) => {
 		SET @selected1 := '${ptID}';
 		SET @selected2 := '${ptID[1]}';
 		
-		SELECT
-	ptID, SUBSTRING_INDEX(ptID, '-', -1) AS teamABBR, GROUP_CONCAT(minutes ORDER BY minutes) AS minutes, GROUP_CONCAT(AVG_GD ORDER BY minutes) AS AVG_GD, GROUP_CONCAT(gameCount ORDER BY minutes) AS gameCount, COUNT(minutes), COUNT(AVG_GD), COUNT(gameCount)
+		# 0613 ver
+SELECT
+	ptID, SUBSTRING_INDEX(ptID, '-', -1) AS teamABBR, GROUP_CONCAT(minutes ORDER BY minutes) AS minutes, GROUP_CONCAT(AVG_GD ORDER BY minutes) AS AVG_GD, GROUP_CONCAT(gameCount ORDER BY minutes) AS gameCount
 FROM # timeSeries 
 	(SELECT
 		ptID, minutes, ROUND(SUM(sum_GD) / SUM(count_GD), 2) AS AVG_GD, SUM(count_GD) AS gameCount
@@ -227,7 +228,6 @@ FROM # timeSeries
 		) AS unionGD
 	
 	WHERE
-		minutes IS NOT NULL AND
 		(FIND_IN_SET(ptID, @selected1) OR
 		FIND_IN_SET(ptID, @selected2))
 	GROUP BY ptID, minutes
@@ -263,7 +263,7 @@ FROM
 	GROUP BY gt.ptID
 	ORDER BY FIELD(gt.ptID, @selected1, @selected2)) AS subT;
 	`;
-	
+
 	if (typeof (ptID) == 'string') {
 		FirstObjectRateAndWR =
 			`
@@ -536,46 +536,57 @@ ORDER BY FIELD(ptID, @selected1, @selected2);
 		SET @selected1 := '${ptID}';
 		SET @selected2 := '';
 
-		SELECT
-	FOtime.earningTeamID AS ptID, SUBSTRING_INDEX(FOtime.earningTeamID, '-', -1) AS teamABBR, AVG_FKsec, AVG_FTsec, AVG_FHsec, AVG_FDsec
+		# 0613 ver
+SELECT 
+	pt.ptID,teamABBR,AVG_FKsec,AVG_FTsec,AVG_FHsec,AVG_FDsec
 FROM # FOtime
 	(SELECT
-		earningTeamID, AVG(TIME_TO_SEC(FKtime)) / 60 AS AVG_FKsec, AVG(TIME_TO_SEC(FTtime)) / 60 AS AVG_FTsec, AVG(TIME_TO_SEC(FHtime)) / 60 AS AVG_FHsec
-	FROM # firstObject
+		FOtime.earningTeamID AS ptID, SUBSTRING_INDEX(FOtime.earningTeamID, '-', -1) AS teamABBR, AVG_FKsec, AVG_FTsec, AVG_FHsec, AVG_FDsec
+	FROM # FOtime
 		(SELECT
-			gameID, earningTeamID, MIN(FK) AS FKtime, MIN(FT) AS FTtime, MIN(FH) AS FHtime
-		FROM # firstObject1
+			earningTeamID, AVG(TIME_TO_SEC(FKtime)) / 60 AS AVG_FKsec, AVG(TIME_TO_SEC(FTtime)) / 60 AS AVG_FTsec, AVG(TIME_TO_SEC(FHtime)) / 60 AS AVG_FHsec
+		FROM # firstObject
 			(SELECT
-				gameID, earningTeamID,
-				(CASE WHEN objectID = 10 THEN time END) AS FK, -- First Kill
-				(CASE WHEN objectID = 11 THEN time END) AS FT, -- First Tower
-				(CASE WHEN objectID = 08 THEN time END) AS FH -- First Herald
+				gameID, earningTeamID, MIN(FK) AS FKtime, MIN(FT) AS FTtime, MIN(FH) AS FHtime
+			FROM # firstObject1
+				(SELECT
+					gameID, earningTeamID,
+					(CASE WHEN objectID = 10 THEN time END) AS FK, -- First Kill
+					(CASE WHEN objectID = 11 THEN time END) AS FT, -- First Tower
+					(CASE WHEN objectID = 08 THEN time END) AS FH -- First Herald
+				FROM
+					game_time_table
+				GROUP BY gameID, objectID
+				HAVING objectID REGEXP ('08|10|11')
+				) AS firstObject1
+			GROUP BY gameID, earningTeamID
+			) AS firstObject
+		GROUP BY earningTeamID
+		) AS FOtime
+	
+	LEFT JOIN # FDtime
+		(SELECT
+			earningTeamID, AVG(TIME_TO_SEC(FDtime)) / 60 AS AVG_FDsec
+		FROM # firstDragon
+			(SELECT
+				gameID, earningTeamID, target, time AS FDtime
 			FROM
 				game_time_table
-			GROUP BY gameID, objectID
-			HAVING objectID REGEXP ('08|10|11')
-			) AS firstObject1
-		GROUP BY gameID, earningTeamID
-		) AS firstObject
-	GROUP BY earningTeamID
+			GROUP BY gameID, target LIKE '%Drake'
+			HAVING target LIKE '%Drake'
+			) AS firstDragon
+		GROUP BY earningTeamID
+		) AS FDtime
+		ON FOtime.earningTeamID = FDtime.earningTeamID
+	WHERE FOtime.earningTeamID = @selected1 OR
+		FOtime.earningTeamID = @selected2
 	) AS FOtime
-
-LEFT JOIN # FDtime
-	(SELECT
-		earningTeamID, AVG(TIME_TO_SEC(FDtime)) / 60 AS AVG_FDsec
-	FROM # firstDragon
-		(SELECT
-			gameID, earningTeamID, target, time AS FDtime
-		FROM
-			game_time_table
-		GROUP BY gameID, target LIKE '%Drake'
-		HAVING target LIKE '%Drake'
-		) AS firstDragon
-	GROUP BY earningTeamID
-	) AS FDtime
-	ON FOtime.earningTeamID = FDtime.earningTeamID
-WHERE FOtime.earningTeamID = @selected1 OR
-	FOtime.earningTeamID = @selected2;
+RIGHT JOIN 
+	(SELECT ptID FROM participating_teams
+	WHERE ptID = @selected1 OR
+		ptID = @selected2) AS pt
+	ON FOtime.ptID = pt.ptID
+ORDER BY FIELD(pt.ptID, @selected1, @selected2);
 	`;
 	}
 	else {
@@ -584,46 +595,57 @@ WHERE FOtime.earningTeamID = @selected1 OR
 		SET @selected1 := '${ptID[0]}';
 		SET @selected2 := '${ptID[1]}';
 
-		SELECT
-	FOtime.earningTeamID AS ptID, SUBSTRING_INDEX(FOtime.earningTeamID, '-', -1) AS teamABBR, AVG_FKsec, AVG_FTsec, AVG_FHsec, AVG_FDsec
+		# 0613 ver
+SELECT 
+	pt.ptID,teamABBR,AVG_FKsec,AVG_FTsec,AVG_FHsec,AVG_FDsec
 FROM # FOtime
 	(SELECT
-		earningTeamID, AVG(TIME_TO_SEC(FKtime)) / 60 AS AVG_FKsec, AVG(TIME_TO_SEC(FTtime)) / 60 AS AVG_FTsec, AVG(TIME_TO_SEC(FHtime)) / 60 AS AVG_FHsec
-	FROM # firstObject
+		FOtime.earningTeamID AS ptID, SUBSTRING_INDEX(FOtime.earningTeamID, '-', -1) AS teamABBR, AVG_FKsec, AVG_FTsec, AVG_FHsec, AVG_FDsec
+	FROM # FOtime
 		(SELECT
-			gameID, earningTeamID, MIN(FK) AS FKtime, MIN(FT) AS FTtime, MIN(FH) AS FHtime
-		FROM # firstObject1
+			earningTeamID, AVG(TIME_TO_SEC(FKtime)) / 60 AS AVG_FKsec, AVG(TIME_TO_SEC(FTtime)) / 60 AS AVG_FTsec, AVG(TIME_TO_SEC(FHtime)) / 60 AS AVG_FHsec
+		FROM # firstObject
 			(SELECT
-				gameID, earningTeamID,
-				(CASE WHEN objectID = 10 THEN time END) AS FK, -- First Kill
-				(CASE WHEN objectID = 11 THEN time END) AS FT, -- First Tower
-				(CASE WHEN objectID = 08 THEN time END) AS FH -- First Herald
+				gameID, earningTeamID, MIN(FK) AS FKtime, MIN(FT) AS FTtime, MIN(FH) AS FHtime
+			FROM # firstObject1
+				(SELECT
+					gameID, earningTeamID,
+					(CASE WHEN objectID = 10 THEN time END) AS FK, -- First Kill
+					(CASE WHEN objectID = 11 THEN time END) AS FT, -- First Tower
+					(CASE WHEN objectID = 08 THEN time END) AS FH -- First Herald
+				FROM
+					game_time_table
+				GROUP BY gameID, objectID
+				HAVING objectID REGEXP ('08|10|11')
+				) AS firstObject1
+			GROUP BY gameID, earningTeamID
+			) AS firstObject
+		GROUP BY earningTeamID
+		) AS FOtime
+	
+	LEFT JOIN # FDtime
+		(SELECT
+			earningTeamID, AVG(TIME_TO_SEC(FDtime)) / 60 AS AVG_FDsec
+		FROM # firstDragon
+			(SELECT
+				gameID, earningTeamID, target, time AS FDtime
 			FROM
 				game_time_table
-			GROUP BY gameID, objectID
-			HAVING objectID REGEXP ('08|10|11')
-			) AS firstObject1
-		GROUP BY gameID, earningTeamID
-		) AS firstObject
-	GROUP BY earningTeamID
+			GROUP BY gameID, target LIKE '%Drake'
+			HAVING target LIKE '%Drake'
+			) AS firstDragon
+		GROUP BY earningTeamID
+		) AS FDtime
+		ON FOtime.earningTeamID = FDtime.earningTeamID
+	WHERE FOtime.earningTeamID = @selected1 OR
+		FOtime.earningTeamID = @selected2
 	) AS FOtime
-
-LEFT JOIN # FDtime
-	(SELECT
-		earningTeamID, AVG(TIME_TO_SEC(FDtime)) / 60 AS AVG_FDsec
-	FROM # firstDragon
-		(SELECT
-			gameID, earningTeamID, target, time AS FDtime
-		FROM
-			game_time_table
-		GROUP BY gameID, target LIKE '%Drake'
-		HAVING target LIKE '%Drake'
-		) AS firstDragon
-	GROUP BY earningTeamID
-	) AS FDtime
-	ON FOtime.earningTeamID = FDtime.earningTeamID
-WHERE FOtime.earningTeamID = @selected1 OR
-	FOtime.earningTeamID = @selected2;
+RIGHT JOIN 
+	(SELECT ptID FROM participating_teams
+	WHERE ptID = @selected1 OR
+		ptID = @selected2) AS pt
+	ON FOtime.ptID = pt.ptID
+ORDER BY FIELD(pt.ptID, @selected1, @selected2);
 	`;
 	}
 
