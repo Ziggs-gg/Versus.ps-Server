@@ -239,19 +239,29 @@ GROUP BY ptID;
 		SET @selected1 := '${ptID}';
 		SET @selected2 := '${ptID[1]}';
 		
-		SELECT ptID, SUBSTRING_INDEX(ptID, '-', -1) AS team, SEC_TO_TIME(ROUND((AVG(TIME_TO_SEC(gameTime))))) AS gameTime, 
-			ROUND(AVG(kills), 2) AS kills, ROUND(AVG(deaths), 2) AS deaths, ROUND(AVG(countTurretDestroy), 1) AS countTurretDestroy,
-			ROUND(AVG(golds), 2) AS golds, ROUND(AVG(visionScore), 2) AS visionScore, ROUND(AVG(countDrake), 2) AS countDrake,
-			ROUND(AVG(countHerald), 2) AS countHerald, ROUND(AVG(countNashor), 2) AS countNashor, ROUND(AVG(countInhibitDestroy), 2) AS countInhibitDestroy
-			FROM gs_teams AS gt
-		INNER JOIN 
-			(SELECT gameID, gameTime FROM games) AS g
-			ON gt.gameID = g.gameID
-		WHERE FIND_IN_SET(ptID, @selected1) OR
-			FIND_IN_SET(ptID, @selected2) 
-		GROUP BY ptID
-		ORDER BY FIELD(ptID, @selected1, @selected2);
+## 0609 ver
+SELECT ptID, teamABBR, imgPath, SEC_TO_TIME(ROUND(gameTime)) AS gameTime,
+	ROUND((kills / (gameTime/60)), 2) AS killsPerMin, ROUND((deaths / (gameTime/60)), 2) AS deathsPerMin,
+	ROUND((countTurretDestroy / (gameTime/60)), 2) AS countTurretDestroyPerMin, ROUND((golds / (gameTime/60)), 2) AS goldsPerMin,
+    ROUND((visionScore / (gameTime/60)), 2) AS visionScorePerMin, countDrake, countHerald, countNashor, countInhibitDestroy
+FROM
+	(SELECT gt.ptID, SUBSTRING_INDEX(gt.ptID, '-', -1) AS teamABBR, imgPath, AVG(TIME_TO_SEC(gameTime)) AS gameTime, 
+		AVG(kills) AS kills, AVG(deaths) AS deaths, AVG(countTurretDestroy) AS countTurretDestroy,
+		AVG(golds) AS golds, AVG(visionScore) AS visionScore, ROUND(AVG(countDrake), 2) AS countDrake,
+		ROUND(AVG(countHerald), 2) AS countHerald, ROUND(AVG(countNashor), 2) AS countNashor, ROUND(AVG(countInhibitDestroy), 2) AS countInhibitDestroy
+		FROM gs_teams AS gt
+	INNER JOIN 
+		(SELECT gameID, gameTime FROM games) AS g
+		ON gt.gameID = g.gameID
+	INNER JOIN
+		(SELECT ptID, imgPath FROM teamIMGpath) AS tI
+		ON gt.ptID = tI.ptID
+	WHERE FIND_IN_SET(gt.ptID, @selected1) OR
+		FIND_IN_SET(gt.ptID, @selected2) 
+	GROUP BY gt.ptID
+	ORDER BY FIELD(gt.ptID, @selected1, @selected2)) AS subT;
 	`;
+	
 	if (typeof (ptID) == 'string') {
 		FirstObjectRateAndWR =
 			`
