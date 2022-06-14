@@ -706,16 +706,20 @@ ORDER BY FIELD(pt.ptID, @selected1, @selected2);
 		SET @selected1 := '${ptID}';
 		SET @selected2 := '${ptID[1]}';
 		
-		# 0609 ver
+		# 0614 ver
 SELECT ptID, SUBSTRING_INDEX(ptID, '-', -1) AS teamABBR, 
 	(CASE # role 한글화
 		WHEN role = 'TOP' THEN '탑'
-        WHEN role = 'JUNGLE' THEN '정글'
-        WHEN role = 'MID' THEN '미드'
-        WHEN role = 'ADC' THEN '원딜'
-        WHEN role = 'SUPPORT' THEN '서폿'
-	END) AS role, AVG_CP, AVG_SA, AVG_EP, AVG_VC
-	FROM
+		WHEN role = 'JUNGLE' THEN '정글'
+		WHEN role = 'MID' THEN '미드'
+		WHEN role = 'ADC' THEN '원딜'
+		WHEN role = 'SUPPORT' THEN '서폿'
+	END) AS role, 
+	CONCAT(AVG_CP, '/', RANK() OVER (PARTITION BY ptID ORDER BY AVG_CP DESC)) AS AVG_CP,
+	CONCAT(AVG_SA, '/', RANK() OVER (PARTITION BY ptID ORDER BY AVG_SA DESC)) AS AVG_SA,
+	CONCAT(AVG_EP, '/', RANK() OVER (PARTITION BY ptID ORDER BY AVG_EP DESC)) AS AVG_EP,
+	CONCAT(AVG_VC, '/', RANK() OVER (PARTITION BY ptID ORDER BY AVG_VC DESC)) AS AVG_VC
+FROM
 	(SELECT SUBSTRING_INDEX(phID, '-', 4) AS ptID, role, ROUND(AVG(CPnorm), 2) AS AVG_CP, 
 		ROUND(AVG(SAnorm), 2) AS AVG_SA, ROUND(AVG(EPnorm), 2) AS AVG_EP, ROUND(AVG(VCnorm), 2) AS AVG_VC
 		FROM games_index
