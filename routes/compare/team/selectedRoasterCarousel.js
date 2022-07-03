@@ -8,7 +8,8 @@ router.get('/', async (req, res) => {
 	let ptID = req.query.ptID;
 	const SelectedTeamRoasterCarousel =
 		`
-		SELECT phID, player, ptID, role, ROUND(((kills + assists) / deaths), 2) AS KDA, DPM, GPM, VSPM, playerIMGPath, teamIMGpath
+		# 0703 ver
+SELECT phID, player, ptID, role, IFNULL(ROUND(((kills + assists) / deaths), 2), 'PERFECT') AS KDA, DPM, GPM, VSPM, playerIMGPath, teamIMGpath
 	FROM
 	(SELECT gs.phID, SUBSTRING_INDEX(gs.phID, '-', -1) AS player, SUBSTRING_INDEX(gs.phID, '-', 4) AS ptID,
 		role, SUM(kills) AS kills, SUM(deaths) AS deaths, SUM(assists) AS assists, 
@@ -21,7 +22,7 @@ router.get('/', async (req, res) => {
         ON SUBSTRING_INDEX(gs.phID, '-', 4) = tI.ptID
 	GROUP BY gs.phID, role
     ) AS toCal
-WHERE ptID = '${ptID}' -- 파라미터 영역
+WHERE ptID = '22-LCK-SUM-GEN' -- 파라미터 영역
 ORDER BY 
 	FIELD (role, 'TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT');
 	`;
