@@ -22,7 +22,7 @@ SELECT phID, player, ptID, role, IFNULL(ROUND(((kills + assists) / deaths), 2), 
         ON SUBSTRING_INDEX(gs.phID, '-', 4) = tI.ptID
 	GROUP BY gs.phID, role
     ) AS toCal
-WHERE ptID = '22-LCK-SUM-GEN' -- 파라미터 영역
+WHERE ptID = '${ptID}' -- 파라미터 영역
 ORDER BY 
 	FIELD (role, 'TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT');
 	`;
