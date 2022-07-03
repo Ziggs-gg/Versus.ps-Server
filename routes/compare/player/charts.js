@@ -101,15 +101,15 @@ SET @selected2:= '${phRole[1]}';
 SET @selected3:= '${phRole[2]}'; 
 SET @selected4:= '${phRole[3]}'; 
 
-# KDAchart
+# KDAchart 7.3 ver
 SELECT
-phRole, ROUND(AVG(kills), 2) AS AVGkills, ROUND(AVG(assists), 2) AS AVGassists, ROUND(AVG(deaths), 2) AS AVGdeaths, ROUND((SUM(kills + assists))/SUM(deaths), 2) AS KDA
+	phRole, ROUND(AVG(kills), 2) AS AVGkills, ROUND(AVG(assists), 2) AS AVGassists, ROUND(AVG(deaths), 2) AS AVGdeaths, IFNULL(ROUND((SUM(kills + assists))/SUM(deaths), 2), 'PERFECT') AS KDA
 FROM (SELECT phID, role, CONCAT(phID, '-', role) AS phRole, kills, assists, deaths FROM games_stats) AS gs
 WHERE 
-FIND_IN_SET(phRole, @selected1) OR
-FIND_IN_SET(phRole, @selected2) OR
-FIND_IN_SET(phRole, @selected3) OR
-FIND_IN_SET(phRole, @selected4)
+	FIND_IN_SET(phRole, @selected1) OR
+    FIND_IN_SET(phRole, @selected2) OR
+    FIND_IN_SET(phRole, @selected3) OR
+    FIND_IN_SET(phRole, @selected4)
 GROUP BY phRole
 ORDER BY FIELD(phRole, @selected1, @selected2, @selected3, @selected4);
 `;
