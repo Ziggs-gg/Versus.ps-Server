@@ -706,7 +706,7 @@ ORDER BY FIELD(pt.ptID, @selected1, @selected2);
 		SET @selected1 := '${ptID}';
 		SET @selected2 := '${ptID[1]}';
 		
-		# 0614 ver
+		# 0710 ver
 SELECT ptID, SUBSTRING_INDEX(ptID, '-', -1) AS teamABBR, 
 	(CASE # role 한글화
 		WHEN role = 'TOP' THEN '탑'
@@ -722,7 +722,7 @@ SELECT ptID, SUBSTRING_INDEX(ptID, '-', -1) AS teamABBR,
 FROM
 	(SELECT SUBSTRING_INDEX(phID, '-', 4) AS ptID, role, ROUND(AVG(CPnorm), 2) AS AVG_CP, 
 		ROUND(AVG(SAnorm), 2) AS AVG_SA, ROUND(AVG(EPnorm), 2) AS AVG_EP, ROUND(AVG(VCnorm), 2) AS AVG_VC
-		FROM games_index
+		FROM indexNorm
 	GROUP BY SUBSTRING_INDEX(phID, '-', 4), role)
     AS toCal
 WHERE FIND_IN_SET(ptID, @selected1) OR
