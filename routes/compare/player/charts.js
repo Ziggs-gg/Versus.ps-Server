@@ -16,22 +16,22 @@ router.get('/', async (req, res) => {
         SET @selected4:= '${phRole[3]}'; 
     
         
-        # Index Radar Chart
-        SELECT leagueID, phRole, AVG_CP, AVG_SA, AVG_EP, AVG_VC
-        FROM
-            (SELECT leagueID, CONCAT(phID, '-', role) AS phRole,
-             ROUND(AVG(CPnorm), 2) AS AVG_CP,
-             ROUND(AVG(SAnorm), 2) AS AVG_SA,
-             ROUND(AVG(EPnorm), 2) AS AVG_EP,
-             ROUND(AVG(VCnorm), 2) AS AVG_VC
-                FROM games_index
-            GROUP BY phRole) AS subt
-        WHERE 
-                FIND_IN_SET(phRole, @selected1) OR
-                FIND_IN_SET(phRole, @selected2) OR
-                FIND_IN_SET(phRole, @selected3) OR
-                FIND_IN_SET(phRole, @selected4)
-        ORDER BY FIELD(phRole, @selected1, @selected2, @selected3, @selected4);
+        # Index Radar Chart // 0710ver
+SELECT leagueID, phRole, AVG_CP, AVG_SA, AVG_EP, AVG_VC
+FROM
+	(SELECT leagueID, CONCAT(phID, '-', role) AS phRole,
+	 ROUND(AVG(CPnorm), 2) AS AVG_CP,
+	 ROUND(AVG(SAnorm), 2) AS AVG_SA,
+	 ROUND(AVG(EPnorm), 2) AS AVG_EP,
+	 ROUND(AVG(VCnorm), 2) AS AVG_VC
+		FROM indexNorm
+	GROUP BY phRole) AS subt
+WHERE 
+		FIND_IN_SET(phRole, @selected1) OR
+		FIND_IN_SET(phRole, @selected2) OR
+		FIND_IN_SET(phRole, @selected3) OR
+		FIND_IN_SET(phRole, @selected4)
+ORDER BY FIELD(phRole, @selected1, @selected2, @selected3, @selected4);
 `;
 
     const PerMinChart =
