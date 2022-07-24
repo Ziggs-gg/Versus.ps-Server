@@ -28,27 +28,10 @@ router.get('/', async (req, res) => {
 	let role = req.query.role;
 
 	if (isEmpty(region) && isEmpty(year) && isEmpty(splitSeason) && isEmpty(role)) {
-		let query =
+		let query =	
 			`
-        # Player Filtering List
-        SELECT 
-            year, splitSeason, region, role, gs.phID, CONCAT(gs.phID, '-', role) AS phRole, ImgPath 
-        FROM 
-            games_stats AS gs
-        INNER JOIN 
-            (SELECT leagueID, year, region, splitSeason FROM leagues) AS l
-            ON SUBSTRING_INDEX(phID, '-', 3) = leagueID
-        INNER JOIN
-            (SELECT phID, ImgPath FROM playerIMGpath) AS pI
-            ON gs.phID = pI.phID
-        WHERE 
-            year = 2022 AND -- 파라미터
-            splitSeason = "Spring" AND -- 파라미터
-            region REGEXP 'LCK|LPL|LEC|LCS' AND -- 파라미터
-            role REGEXP 'TOP|JUNGLE|MID|ADC|SUPPORT' -- 파라미터
-        GROUP BY gs.phID, role
-        ORDER BY SUBSTRING_INDEX(gs.phID, '-', -1);
-        `;
+			CALL playerFilteringList(2022, 'Summer', 'LCK|LPL|LEC|LCS', 'TOP|JUNGLE|MID|ADC|SUPPORT');
+			`
 
 		con.query(query, function (err, results) {
 			if
@@ -59,27 +42,10 @@ router.get('/', async (req, res) => {
 	}
 
 	else if (isEmpty(region)) {
-		let query =
+		let query =			
 			`
-        # Player Filtering List
-SELECT 
-	year, splitSeason, region, role, gs.phID, CONCAT(gs.phID, '-', role) AS phRole, ImgPath 
-FROM 
-	games_stats AS gs
-INNER JOIN 
-	(SELECT leagueID, year, region, splitSeason FROM leagues) AS l
-	ON SUBSTRING_INDEX(phID, '-', 3) = leagueID
-INNER JOIN
-	(SELECT phID, ImgPath FROM playerIMGpath) AS pI
-    ON gs.phID = pI.phID
-WHERE 
-	year = ${year} AND -- 파라미터
-	splitSeason = "${splitSeason}" AND -- 파라미터
-	region REGEXP ' ' AND -- 파라미터
-	role REGEXP '${role} ' -- 파라미터
-GROUP BY gs.phID, role
-ORDER BY SUBSTRING_INDEX(gs.phID, '-', -1);
-        `;
+			CALL playerFilteringList(${year},  '${splitSeason}', ' ', '${role}');
+			`
 
 		con.query(query, [year, splitSeason, role], function (err, results) {
 			if
@@ -91,27 +57,10 @@ ORDER BY SUBSTRING_INDEX(gs.phID, '-', -1);
 	}
 
 	else if (isEmpty(role)) {
-		let query =
+		let query =			
 			`
-        # Player Filtering List
-SELECT 
-	year, splitSeason, region, role, gs.phID, CONCAT(gs.phID, '-', role) AS phRole, ImgPath 
-FROM 
-	games_stats AS gs
-INNER JOIN 
-	(SELECT leagueID, year, region, splitSeason FROM leagues) AS l
-	ON SUBSTRING_INDEX(phID, '-', 3) = leagueID
-INNER JOIN
-	(SELECT phID, ImgPath FROM playerIMGpath) AS pI
-    ON gs.phID = pI.phID
-WHERE 
-	year = ${year} AND -- 파라미터
-	splitSeason = "${splitSeason}" AND -- 파라미터
-	region REGEXP '${region}' AND -- 파라미터
-	role REGEXP ' ' -- 파라미터
-GROUP BY gs.phID, role
-ORDER BY SUBSTRING_INDEX(gs.phID, '-', -1);
-        `;
+			CALL playerFilteringList(${year},  '${splitSeason}', '${region}', ' ');
+			`
 
 		con.query(query, [region, year, splitSeason], function (err, results) {
 			if
@@ -125,25 +74,8 @@ ORDER BY SUBSTRING_INDEX(gs.phID, '-', -1);
 	else {
 		let query =
 			`
-        # Player Filtering List
-SELECT 
-	year, splitSeason, region, role, gs.phID, CONCAT(gs.phID, '-', role) AS phRole, ImgPath 
-FROM 
-	games_stats AS gs
-INNER JOIN 
-	(SELECT leagueID, year, region, splitSeason FROM leagues) AS l
-	ON SUBSTRING_INDEX(phID, '-', 3) = leagueID
-INNER JOIN
-	(SELECT phID, ImgPath FROM playerIMGpath) AS pI
-    ON gs.phID = pI.phID
-WHERE 
-	year = ${year} AND -- 파라미터
-	splitSeason = "${splitSeason}" AND -- 파라미터
-	region REGEXP '${region}' AND -- 파라미터
-	role REGEXP '${role}' -- 파라미터
-GROUP BY gs.phID, role
-ORDER BY SUBSTRING_INDEX(gs.phID, '-', -1);
-        `;
+			CALL playerFilteringList(${year},  '${splitSeason}', '${region}', '${role}');
+			`
 
 		con.query(query, [region, year, splitSeason, role], function (err, results) {
 			if
