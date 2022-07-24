@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
 			if
 				(err) console.log(err);
 			else
-				res.json(results);
+				res.json(results[0]);
 		});
 	}
 
@@ -49,7 +49,7 @@ router.get('/', async (req, res) => {
 			if
 				(err) console.log(err);
 			else
-				res.json(results);
+				res.json(results[0]);
 		});
 	}
 
@@ -63,7 +63,7 @@ router.get('/', async (req, res) => {
 			if
 				(err) console.log(err);
 			else
-				res.json(results);
+				res.json(results[0]);
 		});
 	}
 });
