@@ -28,20 +28,8 @@ router.get('/', async (req, res) => {
 	if (isEmpty(region) && isEmpty(year) && isEmpty(splitSeason)) {
 		let query =
 			`
-			SELECT year, splitSeason, region, pt.ptID, teamFullName, imgPath
-			FROM participating_teams AS pt
-			INNER JOIN 
-				(SELECT leagueID, year, region, splitSeason FROM leagues) AS l
-				ON pt.leagueID = l.leagueID
-			INNER JOIN
-				(SELECT ptID, imgPath FROM teamIMGpath) AS tI
-				ON pt.ptID = tI.ptID
-			WHERE 
-				year = 2022 AND -- 파라미터
-				splitSeason = "Spring" AND -- 파라미터
-				region REGEXP 'LCK|LPL|LEC|LCS'  -- 파라미터
-			ORDER BY teamFullName;   
-        `;
+			CALL teamFilteringList(2022, 'Summer', 'LCK|LPL|LEC|LCS');
+			`
 
 		con.query(query, function (err, results) {
 			if
@@ -54,20 +42,8 @@ router.get('/', async (req, res) => {
 	else if (isEmpty(region)) {
 		let query =
 			`
-			SELECT year, splitSeason, region, pt.ptID, teamFullName, imgPath
-			FROM participating_teams AS pt
-			INNER JOIN 
-				(SELECT leagueID, year, region, splitSeason FROM leagues) AS l
-				ON pt.leagueID = l.leagueID
-			INNER JOIN
-				(SELECT ptID, imgPath FROM teamIMGpath) AS tI
-				ON pt.ptID = tI.ptID
-			WHERE 
-				year = ${year} AND -- 파라미터
-				splitSeason = "${splitSeason}" AND -- 파라미터
-				region REGEXP ' '  -- 파라미터
-			ORDER BY teamFullName;   
-        `;
+			CALL teamFilteringList(${year}, '${splitSeason}', ' ');
+			`
 
 		con.query(query, [year, splitSeason], function (err, results) {
 			if
@@ -80,20 +56,8 @@ router.get('/', async (req, res) => {
 	else {
 		let query =
 			`
-        SELECT year, splitSeason, region, pt.ptID, teamFullName, imgPath
-			FROM participating_teams AS pt
-			INNER JOIN 
-				(SELECT leagueID, year, region, splitSeason FROM leagues) AS l
-				ON pt.leagueID = l.leagueID
-			INNER JOIN
-				(SELECT ptID, imgPath FROM teamIMGpath) AS tI
-				ON pt.ptID = tI.ptID
-			WHERE 
-				year = ${year} AND -- 파라미터
-				splitSeason = "${splitSeason}" AND -- 파라미터
-				region REGEXP '${region}'  -- 파라미터
-			ORDER BY teamFullName;      
-        `;
+			CALL teamFilteringList(${year}, '${splitSeason}', '${region}');
+			`
 
 		con.query(query, [region, year, splitSeason], function (err, results) {
 			if
